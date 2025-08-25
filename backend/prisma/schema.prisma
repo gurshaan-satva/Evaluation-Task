@@ -1,0 +1,304 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// QuickBooks Connection Management
+model QBOConnection {
+  id                String    @id @default(cuid())
+  accessToken       String    // Encrypted access token
+  refreshToken      String    // Encrypted refresh token
+  realmId           String     @unique // QuickBooks Realm ID
+  expiresAt         DateTime  // Access token expiration
+  refreshExpiresAt  DateTime  // Refresh token expiration
+  isConnected       Boolean   @default(false)
+  companyName       String?
+  connectedAt       DateTime  @default(now())
+  lastSyncAt        DateTime?
+  disconnectedAt    DateTime?
+  
+  // Relations
+  invoices          Invoice[]
+  payments          Payment[]
+  syncLogs          SyncLog[]
+  chartOfAccounts   ChartOfAccount[]
+  customers         Customer[]
+  items             Item[]
+}
+
+// Chart of Accounts
+model ChartOfAccount {
+  id                         String         @id // QBO Account.Id as primary key
+  name                       String
+  accountType                String
+  accountSubType             String?
+  classification             String?
+  currency                   String?
+  currencyName               String?
+  currentBalance             Float?
+  currentBalanceWithSub      Float?
+  active                     Boolean
+  subAccount                 Boolean
+  syncToken                  String?
+  fullyQualifiedName         String?
+  domain                     String?
+  createdAtQB                DateTime?
+  updatedAtQB                DateTime?
+  
+  // QuickBooks Integration
+  qboConnectionId            String
+  qboConnection              QBOConnection  @relation(fields: [qboConnectionId], references: [id])
+  
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  
+
+}
+
+// Customer Management
+model Customer {
+  id                String        @id // QBO Customer.Id as primary key
+  displayName       String
+  firstName         String?
+  lastName          String?
+  email             String?
+  phone             String?
+  billingLine1      String?
+  city              String?
+  state             String?
+  postalCode        String?
+  country           String?
+  syncToken         String?
+  balance           Float?
+  active            Boolean       @default(true)
+  
+  // QuickBooks Integration
+  qboConnectionId   String
+  qboConnection     QBOConnection @relation(fields: [qboConnectionId], references: [id])
+  
+  // Relations
+  invoices          Invoice[]
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+
+}
+
+// Item/Service Management
+model Item {
+  id                    String        @id // QBO Item.Id as primary key
+  name                  String
+  fullyQualifiedName    String?
+  type                  ItemType      // Using enum for Type
+  description           String?
+  unitPrice             Float?
+  purchaseCost          Float?
+  quantityOnHand        Int?
+  invStartDate          DateTime?
+  incomeAccountRef      String?
+  incomeAccountName     String?
+  expenseAccountRef     String?
+  expenseAccountName    String?
+  assetAccountRef       String?
+  assetAccountName      String?
+  trackQtyOnHand        Boolean?
+  taxable               Boolean?
+  active                Boolean       @default(true)
+  syncToken             String?
+  domain                String?
+  createTime            DateTime?
+  lastUpdatedTime       DateTime?
+  
+  // QuickBooks Integration
+  qboConnectionId       String
+  qboConnection         QBOConnection @relation(fields: [qboConnectionId], references: [id])
+  
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  
+
+}
+
+// Invoice Management
+model Invoice {
+  id                  String            @id @default(cuid()) // Our internal ID
+  qboInvoiceId        String?           @unique // QBO Invoice.Id after posting
+  customerId          String
+  invoiceDate         DateTime
+  dueDate             DateTime
+  store               String?
+  billingAddress      String?
+  docNumber           String?           @unique
+  subtotal            Float
+  total               Float
+  syncToken           String?
+  sparse              Boolean?
+  sendLater           Boolean           @default(false)
+  status              InvoiceStatus     @default(DRAFT)
+  
+  // Line Items stored as JSON
+  lineItems           Json              // Array of line item objects
+  
+  // QuickBooks Integration
+  qboConnectionId     String
+  qboConnection       QBOConnection     @relation(fields: [qboConnectionId], references: [id])
+  lastSyncedAt        DateTime?
+  syncStatus          SyncStatus        @default(PENDING)
+  
+  // Relations
+  customer            Customer          @relation(fields: [customerId], references: [id])
+  payments            Payment[]
+  syncLogs            SyncLog[]
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+
+}
+
+// Payment Management
+model Payment {
+  id                  String            @id @default(cuid()) // Our internal ID
+  qboPaymentId        String?           @unique // QBO Payment.Id after posting
+  invoiceId           String            // Our internal invoice ID
+  qboInvoiceId        String?           // QBO Invoice ID (for synced payments)
+  amount              Float
+  paymentDate         DateTime          @default(now())
+  paymentMethod       PaymentMethod     @default(BANK_TRANSFER)
+  referenceNumber     String?
+  notes               String?
+  status              PaymentStatus     @default(PENDING)
+  
+  // QuickBooks Integration Fields
+  depositToAccountRef String?           // QBO Account ID for deposit
+  unappliedAmount     Float?            // Amount not applied to any invoice
+  totalAmount         Float?            // Total payment amount in QBO
+  processPayment      Boolean           @default(false)
+  
+  // LinkedTxn for QBO - JSON array of linked transactions
+  linkedTransactions  Json?             // Array of {TxnId, TxnType} objects - used for posting to QB
+  
+  // Sync Management
+  qboConnectionId     String
+  qboConnection       QBOConnection     @relation(fields: [qboConnectionId], references: [id])
+  lastSyncedAt        DateTime?
+  syncStatus          SyncStatus        @default(PENDING)
+  syncToken           String?
+  
+  // Relations
+  invoice             Invoice           @relation(fields: [invoiceId], references: [id])
+  syncLogs            SyncLog[]
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+}
+
+// Sync Log for Tracking All Operations
+model SyncLog {
+  id                  String            @id @default(cuid())
+  syncId              String            @unique @default(cuid()) // External sync reference
+  transactionType     TransactionType
+  systemTransactionId String            // Invoice ID or Payment ID from our system
+  quickbooksId        String?           // QuickBooks entity ID (Invoice/Payment)
+  status              SyncStatus
+  operation           SyncOperation     // CREATE, UPDATE, DELETE
+  
+  // Connection Reference
+  qboConnectionId     String
+  qboConnection       QBOConnection     @relation(fields: [qboConnectionId], references: [id])
+  
+  // Optional Relations (polymorphic-like)
+  invoiceId           String?
+  paymentId           String?
+  invoice             Invoice?          @relation(fields: [invoiceId], references: [id])
+  payment             Payment?          @relation(fields: [paymentId], references: [id])
+  
+  // Request/Response Data
+  requestPayload      Json?             // Data sent to QuickBooks
+  responsePayload     Json?             // Response from QuickBooks
+  errorMessage        String?
+  errorCode           String?
+  
+  // Timing
+  timestamp           DateTime          @default(now())
+  startedAt           DateTime          @default(now())
+  completedAt         DateTime?
+  duration            Int?              // Duration in milliseconds
+  
+  // Retry Logic
+  retryCount          Int               @default(0)
+  maxRetries          Int               @default(3)
+  nextRetryAt         DateTime?
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+}
+
+// Enums
+enum ItemType {
+  Service
+  Inventory
+  Category
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+  VOID
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CHECK
+  CREDIT_CARD
+  BANK_TRANSFER
+  ACH
+  WIRE_TRANSFER
+  OTHER
+}
+
+enum SyncStatus {
+  PENDING
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+  RETRY
+  CANCELLED
+}
+
+enum TransactionType {
+  INVOICE
+  PAYMENT
+  CUSTOMER
+  ITEM
+  ACCOUNT
+  CHART_OF_ACCOUNT
+}
+
+enum SyncOperation {
+  CREATE
+  UPDATE
+  DELETE
+  READ
+}

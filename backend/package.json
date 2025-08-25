@@ -1,0 +1,30 @@
+{
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "@types/p-limit": "^2.1.0",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.14.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.14.0",
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "p-limit": "^7.1.0"
+  },
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "nodemon index.ts",
+    "build": "tsc",
+    "seed:invoices": "npx ts-node src/scripts/seedInvoicesAndPayments.ts",
+    "seed:invoices:dev": "npx ts-node-dev src/scripts/seedInvoicesAndPayments.ts",
+    "db:seed:all": "npm run seed:invoices"
+  }
+}
