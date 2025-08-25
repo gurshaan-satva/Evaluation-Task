@@ -527,7 +527,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ onSyncAll }) => {
               allowClear
             >
               <Option value="PENDING">Pending</Option>
-              <Option value="SYNCING">Syncing</Option>
               <Option value="SUCCESS">Success</Option>
               <Option value="FAILED">Failed</Option>
             </Select>
