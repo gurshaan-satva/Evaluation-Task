@@ -542,7 +542,6 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ onSyncAll }) => {
               allowClear
             >
               <Option value="PENDING">Pending</Option>
-              <Option value="SYNCING">Syncing</Option>
               <Option value="SUCCESS">Success</Option>
               <Option value="FAILED">Failed</Option>
             </Select>
@@ -560,7 +559,6 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ onSyncAll }) => {
               <Option value="CREDIT_CARD">Credit Card</Option>
               <Option value="CHECK">Check</Option>
               <Option value="CASH">Cash</Option>
-              <Option value="WIRE">Wire Transfer</Option>
             </Select>
           </Col>
         </Row>

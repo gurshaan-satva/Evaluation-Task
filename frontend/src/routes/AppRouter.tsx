@@ -1,6 +1,6 @@
 // routes/AppRouter.tsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import LandingPage from '../pages/LandingPage';
 import Dashboard from '../pages/Dashboard';
 import OAuthSuccess from '../pages/OAuthSuccess';
@@ -40,56 +40,43 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-const AppRouter: React.FC = () => {
-  return (
-    <Router>
-      <Routes>
-        {/* Public Routes */}
-        <Route 
-          path="/" 
-          element={
-            <PublicRoute>
-              <LandingPage />
-            </PublicRoute>
-          } 
-        />
-        
-        {/* OAuth Success Handler - NEW ROUTE */}
-        <Route 
-          path="/oauth-success" 
-          element={<OAuthSuccess />} 
-        />
-        
-        {/* Protected Routes */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-        path='/sync-logs' 
-        element={
-          <ProtectedRoute>
-            <SyncLogComponent />
-          </ProtectedRoute>
-        } 
-      />
-        
-        {/* Catch all route - redirect to landing or dashboard based on auth */}
-        <Route 
-          path="*" 
-          element={
-            localStorage.getItem('qb_access_token') && localStorage.getItem('qb_realm_id') 
-              ? <Navigate to="/dashboard" replace />
-              : <Navigate to="/" replace />
-          } 
-        />
-      </Routes>
-    </Router>
-  );
-};
+const appRouter = createBrowserRouter([
+  {
+    path: "/",
+    element: (
+      <PublicRoute>
+        <LandingPage />
+      </PublicRoute>
+    )
+  },
+  {
+    path: "/oauth-success",
+    element: <OAuthSuccess />
+  },
+  {
+    path: "/dashboard",
+    element: (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/sync-logs",
+    element: (
+      <ProtectedRoute>
+        <SyncLogComponent />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "*",
+    element: (
+      localStorage.getItem('qb_access_token') && localStorage.getItem('qb_realm_id') 
+        ? <Navigate to="/dashboard" replace />
+        : <Navigate to="/" replace />
+    )
+  }
+]);
 
-export default AppRouter;
+export default appRouter;
